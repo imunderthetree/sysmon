@@ -1,4 +1,4 @@
-// main.go - Enhanced System Monitor v2.0
+// main.go - Enhanced System Monitor v1.0
 package main
 
 import (
@@ -189,7 +189,7 @@ func (app *App) displayHeader() {
 	fmt.Println()
 
 	// Title and status
-	title := fmt.Sprintf("System Monitor v2.0 - %s View", viewNames[app.currentView])
+	title := fmt.Sprintf("System Monitor v1.0 - %s View", viewNames[app.currentView])
 	status := "RUNNING"
 	if app.paused {
 		status = "PAUSED"
@@ -777,3 +777,4 @@ func stripColors(text string) string {
 	re := regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]`)
 	return re.ReplaceAllString(text, "")
 }
+
