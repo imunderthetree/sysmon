@@ -1,4 +1,4 @@
-# 🖥️ System Monitor v2.0
+# 🖥️ System Monitor v1.0
 
 A powerful, real-time system monitoring tool built in Go that provides comprehensive insights into your system's performance with an intuitive terminal-based interface.
 
