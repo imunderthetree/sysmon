@@ -90,7 +90,7 @@ git clone https://github.com/yourusername/sysmon.git && cd sysmon && go mod down
 ### Overview View
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ System Monitor v2.0 - Overview View                               RUNNING │
+│ System Monitor v1.0 - Overview View                               RUNNING │
 │ 14:23:45                                                    Refresh: 3s │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ [1]Overview [2]Processes [3]Network [4]Disks [5]System                      │
