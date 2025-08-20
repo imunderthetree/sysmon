@@ -38,7 +38,7 @@ A powerful, real-time system monitoring tool built in Go that provides comprehen
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/yourusername/sysmon.git
+git clone https://github.com/imunderthetree/sysmon.git
 cd sysmon
 ```
 
@@ -59,7 +59,7 @@ go build -o sysmon
 
 ### One-liner Installation
 ```bash
-git clone https://github.com/yourusername/sysmon.git && cd sysmon && go mod download && go build -o sysmon && ./sysmon
+git clone https://github.com/imunderthetree/sysmon.git && cd sysmon && go mod download && go build -o sysmon && ./sysmon
 ```
 
 ## 🎯 Usage
