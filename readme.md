@@ -196,7 +196,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [gopsutil](https://github.com/shirou/gopsutil) - Cross-platform library for system and process monitoring
 - [Go team](https://golang.org/) - For the excellent Go programming language
-- All contributors who help improve this project
 
 ## 🐛 Known Issues
 
