@@ -1,12 +1,16 @@
 # 🖥️ System Monitor v1.0
 
-A powerful, real-time system monitoring tool built in Go that provides comprehensive insights into your system's performance with an intuitive terminal-based interface.
+A powerful, real-time system monitoring tool built in Go that provides comprehensive insights into your system's performance with both a graphical (GUI) and terminal-based (TUI) interface.
 
 ![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)
 
 ## ✨ Features
+
+### 🖼️ Two Interface Modes
+- **GUI Mode** (default): Modern graphical interface built with Fyne framework
+- **TUI Mode**: Terminal-based interface for headless servers
 
 ### 📊 Multiple Monitoring Views
 - **Overview**: Complete system summary with key metrics
@@ -32,7 +36,8 @@ A powerful, real-time system monitoring tool built in Go that provides comprehen
 
 ### Prerequisites
 - Go 1.25 or higher
-- Terminal with color support (recommended)
+- For GUI mode: Graphics support (X11 on Linux, Windows desktop, macOS)
+- For TUI mode: Terminal with color support (recommended)
 
 ### Installation
 
@@ -44,7 +49,7 @@ cd sysmon
 
 2. **Install dependencies:**
 ```bash
-go mod download
+go mod tidy
 ```
 
 3. **Build the application:**
@@ -54,12 +59,19 @@ go build -o sysmon
 
 4. **Run the system monitor:**
 ```bash
+# GUI mode (default)
 ./sysmon
+
+# Or explicitly:
+./sysmon --gui
+
+# Terminal UI mode
+./sysmon --tui
 ```
 
 ### One-liner Installation
 ```bash
-git clone https://github.com/imunderthetree/sysmon.git && cd sysmon && go mod download && go build -o sysmon && ./sysmon
+git clone https://github.com/imunderthetree/sysmon.git && cd sysmon && go mod tidy && go build -o sysmon && ./sysmon
 ```
 
 ## 🎯 Usage
