@@ -1,233 +1,212 @@
-# 🖥️ System Monitor v1.0
+# 🖥️ SysMon v2.0 — Real-Time System Observability Cockpit
 
-A powerful, real-time system monitoring tool built in Go that provides comprehensive insights into your system's performance with both a graphical (GUI) and terminal-based (TUI) interface.
+A powerful, ultra-responsive real-time system monitoring tool built in Go that provides comprehensive insights into your machine's performance with both a modern **Web GUI Dashboard** and a high-performance **Terminal UI (TUI)**.
 
 ![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat-square&logo=go)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square)
+![Build](https://img.shields.io/badge/Build-Pure%20Go%20(Zero%20CGO)-success?style=flat-square)
+
+---
 
 ## ✨ Features
 
-### 🖼️ Two Interface Modes
-- **Web GUI Mode** (default): Modern real-time web dashboard with live charts, process explorer, and dark/light themes (Zero CGO/external compiler required!)
-- **TUI Mode**: Interactive terminal-based interface for command-line and headless environments
+### 🖼️ Dual Interface Modes
+- **Modern Web GUI** *(Default)*: Embedded single-page telemetry dashboard with live retina canvas charts, process management, dark/light themes, and real-time Server-Sent Events (SSE). **Zero external C compilers or CGO required**—compiles out of the box on any system.
+- **Terminal TUI Mode**: Lightweight, interactive terminal interface with ANSI colors and keyboard shortcuts designed for headless servers and SSH sessions.
 
 ### 📊 Multiple Monitoring Views
-- **Overview**: Complete system summary with key metrics
-- **Processes**: Detailed process monitoring with CPU and memory usage
-- **Network**: Real-time network activity and interface statistics
-- **Disks**: Comprehensive disk usage information
-- **System**: In-depth system information and specifications
+- **📊 Overview**: At-a-glance system health summary with CPU, RAM, Disk, and Network throughput gauges, live mini trend charts, and top workload tables.
+- **⚡ CPU & RAM**: High-resolution 60-frame continuous load graphs, detailed memory breakdown (Installed, Active Used, Free, Cache, Buffers), and a **Logical Processor Core Grid** displaying per-core load in real time.
+- **💻 Process Explorer**: Live process table with instantaneous search, multi-column sorting (PID, Name, User, CPU%, Mem%), category filter chips, and interactive **Kill Process** controls.
+- **🌐 Network**: Real-time duplex throughput meters (Download Rx / Upload Tx) with aggregate transfer counters and detailed per-adapter statistics (packets, errors, drops).
+- **💾 Disks**: Visual storage volume cards with mountpoints, file system types, and capacity progress bars.
+- **ℹ️ System**: Comprehensive host specifications, OS build, kernel release, and live uptime clock.
 
-### 🎮 Interactive Controls
-- **Real-time Updates**: Configurable refresh rates (1-5 seconds)
-- **Pause/Resume**: Pause monitoring to examine specific moments
-- **Process Management**: Terminate runaway processes directly from the UI
-- **Keyboard Navigation**: Intuitive single-key commands in TUI mode
+### ⚡ Task Manager-Style Telemetry & Continuous Updates
+- **Live Taskbar & Browser Tab Title**: Live CPU and RAM stats stream directly into the browser tab title and Windows taskbar button (e.g., `⚡ CPU 14% · RAM 78% — SysMon`), letting you glance at system performance without switching windows.
+- **Dynamic Status Favicon**: Tab icon dynamically shifts color (cyan, amber, red) based on CPU load.
+- **Logical Processor Cores Grid**: Real-time activity meters for every logical CPU core (e.g. 16 cores), matching the Windows Task Manager Performance view.
+- **Background Keep-Alive**: Uses the Page Visibility API and SSE auto-reconnect to stream uninterrupted even when minimized or running in background tabs.
+- **High-Frequency Update Speeds**: Configurable polling rates from `0.5s (Real-Time)`, `1.0s (Normal)`, `2.0s`, to `5.0s`.
 
-### 📈 Advanced Features
-- **Data Export**: JSON export functionality for analysis
-- **Live Canvas Charts**: CPU, RAM, and Network speed curves
-- **Dark & Light Modes**: Clean UI theme support
-- **Zero Dependencies**: Pure Go implementation that builds on Windows, Linux, and macOS without CGO or GCC
+### 🛠️ Developer & Power User Controls
+- **Bespoke Vector Branding**: Crisp SVG telemetry logo and vector icon system—no emoji placeholders.
+- **One-Click JSON Data Export**: Instant download of complete point-in-time system snapshots.
+- **Dark & Light Mode**: Engineered dark cockpit theme with accessible light mode, persisted via `localStorage`.
+- **Pure Go Architecture**: Zero CGO, zero MinGW/GCC toolchains, zero Node.js build steps. Embedded static assets via Go's standard `embed.FS`.
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Go 1.25 or higher
-- Any modern web browser (for Web GUI mode)
+- Any modern web browser (Edge, Chrome, Firefox, Safari)
 
-### Installation
+### Installation & Build
 
 1. **Clone the repository:**
-```bash
-git clone https://github.com/imunderthetree/sysmon.git
-cd sysmon
-```
+   ```bash
+   git clone https://github.com/imunderthetree/sysmon.git
+   cd sysmon
+   ```
 
 2. **Install dependencies:**
-```bash
-go mod tidy
-```
+   ```bash
+   go mod tidy
+   ```
 
-3. **Build the application:**
-```bash
-go build -o sysmon
-```
+3. **Build the binary:**
+   ```bash
+   # Windows
+   go build -o sysmon.exe
 
-4. **Run the system monitor:**
-```bash
-# GUI mode (default)
-./sysmon
+   # Linux / macOS
+   go build -o sysmon
+   ```
 
-# Or explicitly:
-./sysmon --gui
-
-# Terminal UI mode
-./sysmon --tui
-```
-
-### One-liner Installation
-```bash
-git clone https://github.com/imunderthetree/sysmon.git && cd sysmon && go mod tidy && go build -o sysmon && ./sysmon
-```
+---
 
 ## 🎯 Usage
+
+### Running the Web GUI (Default)
+Running `sysmon` without flags starts the local web server and automatically launches your default web browser:
+```bash
+./sysmon
+```
+> The dashboard will be available at **`http://localhost:8080`** (or the next available port).
+
+### Command-Line Flags
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-gui` | `true` | Run in Web GUI mode |
+| `-tui` | `false` | Run in interactive Terminal UI mode |
+| `-port <number>` | `8080` | Port for the Web GUI server |
+| `-no-browser` | `false` | Start server without auto-opening the browser (ideal for headless servers) |
+
+#### Examples
+```bash
+# Run Terminal UI (TUI)
+./sysmon -tui
+
+# Run headless Web GUI on custom port 9090
+./sysmon -port 9090 -no-browser
+```
+
+---
+
+## ⌨️ Terminal UI (TUI) Controls
+
+When running in `-tui` mode, use single-key keyboard commands:
 
 ### Navigation
 | Key | Action |
 |-----|--------|
-| `1-5` | Switch between views (Overview, Processes, Network, Disks, System) |
-| `H` or `?` | Show/hide help screen |
-| `Q` | Quit application |
+| `1` - `5` | Switch view (`1`: Overview, `2`: Processes, `3`: Network, `4`: Disks, `5`: System) |
+| `H` or `?` | Toggle help overlay |
+| `Q` | Graceful shutdown |
 
-### Control
+### Control & Settings
 | Key | Action |
 |-----|--------|
-| `P` | Pause/resume updates |
+| `P` | Pause / resume real-time updates |
 | `R` | Force refresh |
-| `C` | Toggle compact mode |
-| `+/-` | Increase/decrease refresh rate |
+| `C` | Toggle compact layout |
+| `+` / `-` | Increase / decrease refresh frequency |
+| `L` | Toggle file logging to `logs/` |
+| `E` | Export current snapshot to JSON in `exports/` |
 
-### Data Management
-| Key | Action |
-|-----|--------|
-| `L` | Toggle logging to file |
-| `E` | Export current stats to JSON |
+---
 
-## 📸 Screenshots
-
-### Overview View
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ System Monitor v1.0 - Overview View                               RUNNING │
-│ 14:23:45                                                    Refresh: 3s │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ [1]Overview [2]Processes [3]Network [4]Disks [5]System                      │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-🖥️ System Information
-   Hostname: my-computer | OS: linux | Uptime: 2d 14h 23m
-
-🔧 CPU Usage: 15.2% ████████████████░░░░░░░░░░░░░░░░░░░░░░░░
-   Cores: 8 | Model: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-
-💾 Memory: 45.3% ██████████████████░░░░░░░░░░░░░░░░░░░░░░
-   Used: 7.2GB / 16.0GB | Free: 8.8GB
-```
-
-## 🏗️ Architecture
-
-The project is organized into clean, modular components:
+## 🏗️ Project Architecture
 
 ```
 sysmon/
-├── main.go              # Main application and UI logic
-├── internal/
-│   ├── stats.go         # System statistics collection
-│   ├── processes.go     # Process monitoring
-│   └── network.go       # Network statistics
-├── go.mod              # Go module definition
-├── logs/               # Generated log files (when logging enabled)
-└── exports/            # Generated export files
+├── gui/                      # Web GUI Subsystem
+│   ├── app.go                # HTTP server, SSE broadcaster, telemetry collector
+│   └── web/                  # Embedded frontend assets (zero CDN dependencies)
+│       ├── index.html        # Semantic HTML5 single-page application
+│       ├── style.css         # Modern dark-tech telemetry design system
+│       └── app.js            # Client-side state, SSE receiver, and Canvas charts
+├── internal/                 # System Telemetry Engine (Pure Go)
+│   ├── stats.go              # CPU, logical cores, memory, disk, host info
+│   ├── processes.go          # Process enumeration, sorting, and stats
+│   └── network.go            # Network adapters and speed calculations
+├── gui_init.go               # Web GUI bootstrap logic
+├── main_default.go           # CLI flags and application entry point
+├── main_tui.go               # TUI build-tagged entry point
+├── main.go                   # Terminal UI rendering engine
+├── go.mod                    # Module definitions
+└── readme.md                 # Documentation
 ```
 
-### Key Components
+### Core API Endpoints
+When running in Web GUI mode, SysMon exposes a lightweight REST & streaming API:
+* `GET /`: Serves the embedded web dashboard.
+* `GET /api/stats`: Returns current system telemetry JSON.
+* `GET /api/events`: Server-Sent Events (SSE) live telemetry stream.
+* `POST /api/settings`: Updates update interval or paused state (`{ "paused": bool, "refresh_rate_ms": int }`).
+* `POST /api/process/kill`: Terminates a process by PID (`{ "pid": int }`).
+* `GET /api/export`: Direct JSON download attachment of current metrics.
 
-- **Main Application** (`main.go`): Terminal UI, keyboard handling, and view management
-- **System Stats** (`internal/stats.go`): CPU, memory, disk, and host information
-- **Process Monitor** (`internal/processes.go`): Process enumeration and statistics
-- **Network Monitor** (`internal/network.go`): Network interface and traffic monitoring
+---
 
-## 🔧 Configuration
+## 📊 Export Data Schema
 
-### Environment Variables
-Currently, the application uses default settings. Future versions will support:
-- `SYSMON_REFRESH_RATE`: Default refresh rate
-- `SYSMON_LOG_DIR`: Custom log directory
-- `SYSMON_EXPORT_DIR`: Custom export directory
-
-### Customization
-The application supports runtime customization through keyboard shortcuts:
-- Refresh rate: Adjustable from 1-10 seconds
-- Display modes: Normal and compact views
-- Color themes: Automatic based on terminal capabilities
-
-## 📊 Data Export Format
-
-Exported JSON includes comprehensive system information:
+Exported JSON contains comprehensive hardware, OS, and process metadata:
 
 ```json
 {
-  "export_timestamp": "2024-01-15T14:23:45Z",
   "system": {
-    "cpu": { "usage": 15.2, "cores": 8 },
-    "memory": { "total": 16777216000, "used": 7516192768 },
-    "disk": [...]
+    "cpu": {
+      "usage": 14.8,
+      "cores": 16,
+      "model_name": "12th Gen Intel(R) Core(TM) i5-12600HX",
+      "per_core": [12.5, 18.2, 8.4, 22.1, ...]
+    },
+    "memory": {
+      "total": 12578578432,
+      "available": 2665701376,
+      "used": 9912877056,
+      "used_percent": 78.8
+    },
+    "disk": [...],
+    "host": {
+      "hostname": "Workstation",
+      "os": "windows",
+      "platform": "Microsoft Windows 11 Pro",
+      "uptime": 595199
+    }
   },
   "processes": {
-    "total_processes": 245,
+    "total_processes": 284,
+    "running_processes": 12,
+    "sleeping_processes": 272,
     "top_cpu": [...],
     "top_memory": [...]
   },
   "network": {
     "interfaces": [...],
-    "total_sent": 1024000,
-    "total_recv": 2048000
+    "total_sent": 412048590,
+    "total_recv": 8943189210
   }
 }
 ```
 
+---
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-### Development Setup
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Make your changes
-4. Add tests if applicable
-5. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-6. Push to the branch (`git push origin feature/AmazingFeature`)
-7. Open a Pull Request
-
-### Code Style
-- Follow standard Go formatting (`go fmt`)
-- Add comments for exported functions
-- Keep functions focused and modular
-- Use meaningful variable names
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [gopsutil](https://github.com/shirou/gopsutil) - Cross-platform library for system and process monitoring
-- [Go team](https://golang.org/) - For the excellent Go programming language
-
-## 🐛 Known Issues
-
-- Process CPU usage calculation may take a moment to stabilize on first run
-- Some system information may not be available on all platforms
-- Network speed calculations require at least two measurement cycles
-
-## 🚧 Roadmap
-
-- [ ] Historical data tracking and graphs
-- [ ] Web-based dashboard
-- [ ] Alert system for resource thresholds
-- [ ] Plugin system for custom monitors
-- [ ] Configuration file support
-- [ ] Docker containerization
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-1. Check the [Issues](https://github.com/imunderthetree/sysmon/issues) page
-2. Create a new issue with detailed information
-3. Include your operating system and Go version
+Contributions, issues, and feature requests are welcome!
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/NewFeature`)
+3. Commit your changes (`git commit -m 'Add NewFeature'`)
+4. Push to the branch (`git push origin feature/NewFeature`)
+5. Open a Pull Request
 
 ---
 
+## 📝 License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
