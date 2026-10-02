@@ -9,8 +9,8 @@ A powerful, real-time system monitoring tool built in Go that provides comprehen
 ## ✨ Features
 
 ### 🖼️ Two Interface Modes
-- **GUI Mode** (default): Modern graphical interface built with Fyne framework
-- **TUI Mode**: Terminal-based interface for headless servers
+- **Web GUI Mode** (default): Modern real-time web dashboard with live charts, process explorer, and dark/light themes (Zero CGO/external compiler required!)
+- **TUI Mode**: Interactive terminal-based interface for command-line and headless environments
 
 ### 📊 Multiple Monitoring Views
 - **Overview**: Complete system summary with key metrics
@@ -20,24 +20,22 @@ A powerful, real-time system monitoring tool built in Go that provides comprehen
 - **System**: In-depth system information and specifications
 
 ### 🎮 Interactive Controls
-- **Real-time Updates**: Configurable refresh rates (1-10 seconds)
+- **Real-time Updates**: Configurable refresh rates (1-5 seconds)
 - **Pause/Resume**: Pause monitoring to examine specific moments
-- **Compact Mode**: Space-efficient display for smaller terminals
-- **Keyboard Navigation**: Intuitive single-key commands
+- **Process Management**: Terminate runaway processes directly from the UI
+- **Keyboard Navigation**: Intuitive single-key commands in TUI mode
 
 ### 📈 Advanced Features
 - **Data Export**: JSON export functionality for analysis
-- **Logging**: Optional file logging with timestamps
-- **Progress Bars**: Visual representation of resource usage
-- **Color-coded Metrics**: Intuitive color scheme for quick assessment
-- **Cross-platform**: Works on Linux, macOS, and Windows
+- **Live Canvas Charts**: CPU, RAM, and Network speed curves
+- **Dark & Light Modes**: Clean UI theme support
+- **Zero Dependencies**: Pure Go implementation that builds on Windows, Linux, and macOS without CGO or GCC
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Go 1.25 or higher
-- For GUI mode: Graphics support (X11 on Linux, Windows desktop, macOS)
-- For TUI mode: Terminal with color support (recommended)
+- Any modern web browser (for Web GUI mode)
 
 ### Installation
 

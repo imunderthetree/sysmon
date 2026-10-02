@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"sysmon/internal"
 	"time"
 )
@@ -52,6 +54,50 @@ type App struct {
 	exitRequested bool
 }
 
+func initTUI() {
+	app := &App{
+		currentView:  ViewOverview,
+		refreshRate:  3 * time.Second,
+		paused:       false,
+		logToFile:    false,
+		showHelp:     false,
+		compactMode:  false,
+		colorEnabled: true,
+	}
+
+	// Handle graceful shutdown
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	// Start keyboard input handler
+	inputChan := make(chan rune)
+	go handleKeyboardInput(inputChan)
+
+	// Initial display
+	app.clearScreen()
+	app.displayInterface()
+
+	// Main loop
+	ticker := time.NewTicker(app.refreshRate)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-signalChan:
+			app.cleanup()
+			return
+		case key := <-inputChan:
+			if app.handleKeyPress(key) {
+				app.cleanup()
+				return
+			}
+		case <-ticker.C:
+			if !app.paused && !app.showHelp {
+				app.displayInterface()
+			}
+		}
+	}
+}
 
 func (app *App) handleKeyPress(key rune) bool {
 	switch key {

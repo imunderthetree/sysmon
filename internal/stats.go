@@ -21,9 +21,10 @@ type SystemStats struct {
 }
 
 type CPUInfo struct {
-	Usage     float64 `json:"usage"`
-	Cores     int     `json:"cores"`
-	ModelName string  `json:"model_name"`
+	Usage     float64   `json:"usage"`
+	Cores     int       `json:"cores"`
+	ModelName string    `json:"model_name"`
+	PerCore   []float64 `json:"per_core"`
 }
 
 type MemoryInfo struct {
@@ -94,13 +95,20 @@ func GetSystemStats() (*SystemStats, error) {
 func getCPUInfo() (CPUInfo, error) {
 	var cpuInfo CPUInfo
 
-	// Get CPU usage percentage (average over 1 second)
-	percentages, err := cpu.Percent(time.Second, false)
-	if err != nil {
-		return cpuInfo, err
-	}
-	if len(percentages) > 0 {
-		cpuInfo.Usage = percentages[0]
+	// Get per-core CPU usage percentages
+	perCore, err := cpu.Percent(100*time.Millisecond, true)
+	if err == nil && len(perCore) > 0 {
+		cpuInfo.PerCore = perCore
+		var sum float64
+		for _, v := range perCore {
+			sum += v
+		}
+		cpuInfo.Usage = sum / float64(len(perCore))
+	} else {
+		percentages, err := cpu.Percent(100*time.Millisecond, false)
+		if err == nil && len(percentages) > 0 {
+			cpuInfo.Usage = percentages[0]
+		}
 	}
 
 	// Get CPU count

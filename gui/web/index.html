@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SysMon - High-precision real-time system performance monitor and cockpit">
+  <title>SysMon — System Observability Cockpit</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230284c7'/%3E%3Cpath d='M6 16h5l3-7 4 14 3-7h5' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+</head>
+<body class="theme-dark">
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Navigation Sidebar">
+      <div class="brand">
+        <div class="brand-logo-wrap">
+          <svg class="brand-logo" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="34" height="34" rx="8" fill="url(#brand-grad)" />
+            <path d="M6 17h6l3-8 4 16 3-8h6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="17" cy="17" r="1.5" fill="#38bdf8" />
+            <defs>
+              <linearGradient id="brand-grad" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#0284c7" />
+                <stop offset="1" stop-color="#2563eb" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">SysMon</span>
+          <span class="brand-version">TELEMETRY v2.0</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu" aria-label="Main Navigation">
+        <button class="nav-item active" data-view="overview" aria-label="System Overview">
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span class="nav-label">Overview</span>
+        </button>
+
+        <button class="nav-item" data-view="cpu-mem" aria-label="CPU and Memory Details">
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+            <rect x="9" y="9" width="6" height="6"></rect>
+            <line x1="9" y1="1" x2="9" y2="4"></line>
+            <line x1="15" y1="1" x2="15" y2="4"></line>
+            <line x1="9" y1="20" x2="9" y2="23"></line>
+            <line x1="15" y1="20" x2="15" y2="23"></line>
+            <line x1="20" y1="9" x2="23" y2="9"></line>
+            <line x1="20" y1="15" x2="23" y2="15"></line>
+            <line x1="1" y1="9" x2="4" y2="9"></line>
+            <line x1="1" y1="15" x2="4" y2="15"></line>
+          </svg>
+          <span class="nav-label">CPU & RAM</span>
+        </button>
+
+        <button class="nav-item" data-view="processes" aria-label="Process Explorer">
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          <span class="nav-label">Processes</span>
+          <span class="badge" id="badge-procs">0</span>
+        </button>
+
+        <button class="nav-item" data-view="network" aria-label="Network Interfaces and Traffic">
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span class="nav-label">Network</span>
+        </button>
+
+        <button class="nav-item" data-view="disks" aria-label="Storage Disks and Volumes">
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+          </svg>
+          <span class="nav-label">Disks</span>
+        </button>
+
+        <button class="nav-item" data-view="system" aria-label="System Hardware and OS Specs">
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span class="nav-label">System</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="host-pill">
+          <span class="pulse-indicator" id="conn-indicator"></span>
+          <span class="host-name" id="sidebar-hostname">Connecting…</span>
+        </div>
+        <div class="uptime-text" id="sidebar-uptime">Up: --</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Header Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title" id="page-title">System Overview</h1>
+          <span class="status-chip" id="status-chip">
+            <span class="dot"></span>
+            <span id="status-text">LIVE</span>
+          </span>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Refresh Rate Selection -->
+          <div class="control-group">
+            <label for="refresh-select" class="ctrl-label">Interval:</label>
+            <select id="refresh-select" class="select-input" aria-label="Telemetry polling rate">
+              <option value="500">0.5s (Real-Time)</option>
+              <option value="1000" selected>1.0s (Normal)</option>
+              <option value="2000">2.0s</option>
+              <option value="5000">5.0s</option>
+            </select>
+          </div>
+
+          <!-- Pause / Resume Button -->
+          <button id="btn-pause" class="btn btn-secondary" title="Pause / Resume Live Streaming" aria-label="Toggle pause live monitoring">
+            <span id="btn-pause-icon-wrap" class="btn-icon-wrap">
+              <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
+            </span>
+            <span id="btn-pause-text">Pause</span>
+          </button>
+
+          <!-- Export JSON Button -->
+          <button id="btn-export" class="btn btn-secondary" title="Export Current Metrics to JSON" aria-label="Export metrics snapshot">
+            <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Export</span>
+          </button>
+
+          <!-- Theme Toggle Button -->
+          <button id="btn-theme" class="btn btn-icon" title="Toggle Theme" aria-label="Switch between light and dark themes">
+            <span id="theme-icon-wrap">
+              <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+            </span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Scrollable Views Container -->
+      <div class="content-body">
+
+        <!-- VIEW 1: OVERVIEW -->
+        <section id="view-overview" class="view-panel active">
+          <!-- Key Metric Cards -->
+          <div class="metrics-grid">
+            <!-- CPU Card -->
+            <div class="card metric-card">
+              <div class="card-header">
+                <span class="card-title">CPU Utilization</span>
+                <span class="card-extra" id="card-cpu-cores">-- Cores</span>
+              </div>
+              <div class="metric-value-row">
+                <span class="metric-number tabular" id="card-cpu-val">0.0%</span>
+                <div class="mini-bar-wrap">
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill fill-cpu" id="bar-cpu"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-sub" id="card-cpu-model">Detecting processor…</div>
+            </div>
+
+            <!-- Memory Card -->
+            <div class="card metric-card">
+              <div class="card-header">
+                <span class="card-title">Memory (RAM)</span>
+                <span class="card-extra tabular" id="card-mem-fraction">-- / --</span>
+              </div>
+              <div class="metric-value-row">
+                <span class="metric-number tabular" id="card-mem-val">0.0%</span>
+                <div class="mini-bar-wrap">
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill fill-mem" id="bar-mem"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-sub tabular" id="card-mem-avail">Available: --</div>
+            </div>
+
+            <!-- Primary Disk Card -->
+            <div class="card metric-card">
+              <div class="card-header">
+                <span class="card-title">Primary Volume</span>
+                <span class="card-extra tabular" id="card-disk-fraction">-- / --</span>
+              </div>
+              <div class="metric-value-row">
+                <span class="metric-number tabular" id="card-disk-val">0.0%</span>
+                <div class="mini-bar-wrap">
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill fill-disk" id="bar-disk"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-sub" id="card-disk-name">Primary Storage</div>
+            </div>
+
+            <!-- Network Card -->
+            <div class="card metric-card">
+              <div class="card-header">
+                <span class="card-title">Network Throughput</span>
+                <span class="card-extra tabular" id="card-net-conns">-- Conns</span>
+              </div>
+              <div class="net-speed-row">
+                <div class="speed-item">
+                  <svg class="net-arrow down" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                  <span class="speed-val tabular" id="card-net-down">0.0 KB/s</span>
+                </div>
+                <div class="speed-item">
+                  <svg class="net-arrow up" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                  <span class="speed-val tabular" id="card-net-up">0.0 KB/s</span>
+                </div>
+              </div>
+              <div class="card-sub tabular" id="card-net-total">Total: 0 B Recv / 0 B Sent</div>
+            </div>
+          </div>
+
+          <!-- Overview Live Charts -->
+          <div class="charts-row">
+            <div class="card chart-card">
+              <div class="card-header">
+                <div class="chart-header-left">
+                  <span class="indicator-dot dot-cyan"></span>
+                  <span class="card-title">CPU Telemetry History</span>
+                </div>
+                <span class="badge tabular" id="chart-cpu-cur">0.0%</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="chart-cpu" height="180"></canvas>
+              </div>
+            </div>
+
+            <div class="card chart-card">
+              <div class="card-header">
+                <div class="chart-header-left">
+                  <span class="indicator-dot dot-purple"></span>
+                  <span class="card-title">Memory Allocation History</span>
+                </div>
+                <span class="badge tabular" id="chart-mem-cur">0.0%</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="chart-memory" height="180"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Top Tables -->
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Top Workloads by CPU</span>
+              </div>
+              <div class="table-responsive">
+                <table class="compact-table">
+                  <thead>
+                    <tr><th>PID</th><th>Workload</th><th>CPU %</th><th>Memory</th></tr>
+                  </thead>
+                  <tbody id="top-cpu-tbody">
+                    <tr><td colspan="4" class="text-center">Awaiting telemetry…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Top Workloads by Memory</span>
+              </div>
+              <div class="table-responsive">
+                <table class="compact-table">
+                  <thead>
+                    <tr><th>PID</th><th>Workload</th><th>Memory</th><th>Mem %</th></tr>
+                  </thead>
+                  <tbody id="top-mem-tbody">
+                    <tr><td colspan="4" class="text-center">Awaiting telemetry…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 2: CPU & RAM -->
+        <section id="view-cpu-mem" class="view-panel">
+          <div class="charts-stacked">
+            <div class="card chart-card">
+              <div class="card-header">
+                <div class="chart-header-left">
+                  <span class="indicator-dot dot-cyan"></span>
+                  <span class="card-title">High-Resolution CPU Load (Last 60 telemetry frames)</span>
+                </div>
+              </div>
+              <div class="chart-container-large">
+                <canvas id="chart-cpu-large" height="230"></canvas>
+              </div>
+            </div>
+
+            <div class="card chart-card">
+              <div class="card-header">
+                <div class="chart-header-left">
+                  <span class="indicator-dot dot-purple"></span>
+                  <span class="card-title">Continuous RAM Utilization (Last 60 telemetry frames)</span>
+                </div>
+              </div>
+              <div class="chart-container-large">
+                <canvas id="chart-mem-large" height="230"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detailed Memory Breakdown -->
+          <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+              <span class="card-title">Memory Allocation Architecture</span>
+            </div>
+            <div class="stat-cards-row" id="mem-breakdown-row">
+              <div class="stat-pill"><span class="lbl">Installed RAM</span> <strong class="tabular" id="mem-bd-total">--</strong></div>
+              <div class="stat-pill"><span class="lbl">Active Used</span> <strong class="tabular" id="mem-bd-used">--</strong></div>
+              <div class="stat-pill"><span class="lbl">Available</span> <strong class="tabular" id="mem-bd-avail">--</strong></div>
+              <div class="stat-pill"><span class="lbl">Unallocated Free</span> <strong class="tabular" id="mem-bd-free">--</strong></div>
+              <div class="stat-pill"><span class="lbl">System Cache</span> <strong class="tabular" id="mem-bd-cached">--</strong></div>
+              <div class="stat-pill"><span class="lbl">Kernel Buffers</span> <strong class="tabular" id="mem-bd-buffers">--</strong></div>
+            </div>
+          </div>
+
+          <!-- Logical Processors Grid (Task Manager Style) -->
+          <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+              <span class="card-title">Logical Processors Core Activity</span>
+              <span class="card-extra tabular" id="cores-summary">-- Cores</span>
+            </div>
+            <div class="cores-grid" id="cpu-cores-grid">
+              <div class="text-center" style="grid-column: 1 / -1; padding: 20px; color: var(--text-muted)">Sampling core telemetry…</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 3: PROCESSES -->
+        <section id="view-processes" class="view-panel">
+          <div class="card">
+            <div class="card-header flex-between">
+              <div class="proc-header-stats">
+                <span class="card-title">Process Explorer</span>
+                <span class="badge tabular" id="procs-total-badge">Total: 0</span>
+                <span class="badge badge-success tabular" id="procs-running-badge">Running: 0</span>
+                <span class="badge badge-dim tabular" id="procs-sleeping-badge">Sleeping: 0</span>
+              </div>
+              <div class="proc-search-wrap">
+                <svg class="search-icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="proc-search" class="search-input" placeholder="Filter by name, PID, user…" autocomplete="off" spellcheck="false">
+              </div>
+            </div>
+
+            <!-- Quick Filter Chips -->
+            <div class="filter-chips-row">
+              <button class="filter-chip active" data-filter="all">All Processes</button>
+              <button class="filter-chip" data-filter="high-cpu">High CPU (&gt; 5%)</button>
+              <button class="filter-chip" data-filter="high-mem">High RAM (&gt; 100MB)</button>
+              <button class="filter-chip" data-filter="user">Current User</button>
+            </div>
+
+            <div class="table-responsive full-table-wrap">
+              <table class="data-table" id="procs-table">
+                <thead>
+                  <tr>
+                    <th data-sort="pid" class="sortable">PID <span class="sort-arr">↕</span></th>
+                    <th data-sort="name" class="sortable">Process Name <span class="sort-arr">↕</span></th>
+                    <th data-sort="username" class="sortable">User / Domain <span class="sort-arr">↕</span></th>
+                    <th data-sort="cpu_percent" class="sortable active-sort desc">CPU % <span class="sort-arr">▼</span></th>
+                    <th data-sort="mem_percent" class="sortable">Mem % <span class="sort-arr">↕</span></th>
+                    <th data-sort="memory_mb" class="sortable">Resident RAM <span class="sort-arr">↕</span></th>
+                    <th data-sort="status" class="sortable">State <span class="sort-arr">↕</span></th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="processes-tbody">
+                  <tr><td colspan="8" class="text-center">Enumerating processes…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 4: NETWORK -->
+        <section id="view-network" class="view-panel">
+          <div class="card chart-card">
+            <div class="card-header">
+              <div class="chart-header-left">
+                <span class="indicator-dot dot-emerald"></span>
+                <span class="card-title">Real-Time Interface Bandwidth</span>
+              </div>
+              <div class="legend-wrap">
+                <span class="legend-box legend-down"></span> Download (Rx)
+                <span class="legend-box legend-up"></span> Upload (Tx)
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-net" height="210"></canvas>
+            </div>
+          </div>
+
+          <h2 class="section-title">Network Adapters & Interfaces</h2>
+          <div class="interfaces-grid" id="interfaces-container">
+            <div class="card text-center">Scanning network adapters…</div>
+          </div>
+        </section>
+
+        <!-- VIEW 5: DISKS -->
+        <section id="view-disks" class="view-panel">
+          <h2 class="section-title">Block Storage Devices & File Systems</h2>
+          <div class="disks-grid" id="disks-container">
+            <div class="card text-center">Scanning mounted volumes…</div>
+          </div>
+        </section>
+
+        <!-- VIEW 6: SYSTEM -->
+        <section id="view-system" class="view-panel">
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header"><span class="card-title">Host & Kernel Environment</span></div>
+              <dl class="meta-list" id="host-meta-list">
+                <div class="meta-item"><dt>Hostname</dt><dd id="sys-hostname">--</dd></div>
+                <div class="meta-item"><dt>Operating System</dt><dd id="sys-os">--</dd></div>
+                <div class="meta-item"><dt>Platform Build</dt><dd id="sys-platform">--</dd></div>
+                <div class="meta-item"><dt>Kernel Release</dt><dd id="sys-kernel">--</dd></div>
+                <div class="meta-item"><dt>Cumulative Uptime</dt><dd class="tabular" id="sys-uptime">--</dd></div>
+              </dl>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><span class="card-title">Processor & Architecture</span></div>
+              <dl class="meta-list" id="hardware-meta-list">
+                <div class="meta-item"><dt>Processor Model</dt><dd id="sys-cpu-model">--</dd></div>
+                <div class="meta-item"><dt>Logical Execution Cores</dt><dd class="tabular" id="sys-cpu-cores">--</dd></div>
+                <div class="meta-item"><dt>Total Addressable Memory</dt><dd class="tabular" id="sys-ram-total">--</dd></div>
+                <div class="meta-item"><dt>Storage Volume Count</dt><dd class="tabular" id="sys-disk-count">--</dd></div>
+                <div class="meta-item"><dt>Network Adapter Count</dt><dd class="tabular" id="sys-net-count">--</dd></div>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Kill Modal Confirmation -->
+  <div class="modal-backdrop" id="kill-modal" role="dialog" aria-modal="true" aria-labelledby="kill-modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="kill-modal-title">Terminate Process</h3>
+      </div>
+      <p class="modal-body">
+        Are you certain you wish to terminate <strong id="kill-proc-name">PID</strong>? Any unsaved state within this process will be discarded.
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="btn-cancel-kill">Dismiss</button>
+        <button class="btn btn-danger" id="btn-confirm-kill">Terminate Process</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

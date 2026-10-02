@@ -1,284 +1,413 @@
 package gui
 
 import (
+	"context"
+	"embed"
+	"encoding/json"
 	"fmt"
+	"io/fs"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"os/signal"
+	"runtime"
 	"sync"
+	"syscall"
 	"sysmon/internal"
 	"time"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 )
 
-// HistoryPoint represents a single data point for charting
-type HistoryPoint struct {
-	Timestamp time.Time
-	Value     float64
+//go:embed web/*
+var webFS embed.FS
+
+// HistoryData holds time series points for charts
+type HistoryData struct {
+	CPU     []float64               `json:"cpu"`
+	Memory  []float64               `json:"memory"`
+	Network []internal.NetworkSpeed `json:"network"`
 }
 
-// ThemeMode represents light or dark theme
-type ThemeMode int
-
-const (
-	ThemeLight ThemeMode = iota
-	ThemeDark
-)
-
-// AppState manages the application state and data collection
+// AppState manages the application data collection, web server, and SSE broadcasts
 type AppState struct {
-	fyneApp    fyne.App
-	mainWindow fyne.Window
-
-	// Refresh control
-	ticker      *time.Ticker
-	stopChan    chan bool
-	refreshRate time.Duration
-	paused      bool
-
-	// Data storage for charts/display (keep last 60 points)
-	cpuHistory     []*HistoryPoint
-	memoryHistory  []*HistoryPoint
-	networkHistory []*HistoryPoint
-	networkUpHistory []*HistoryPoint
-
-	// Current stats
+	mu            sync.RWMutex
 	systemStats   *internal.SystemStats
 	processStats  *internal.ProcessStats
 	networkStats  *internal.NetworkStats
+	networkSpeeds []internal.NetworkSpeed
 
-	// UI components
-	tabs          *container.AppTabs
-	statusLabel   *widget.Label
-	pauseButton   *widget.Button
-	themeToggle   *widget.Button
-	refreshSlider *widget.Slider
+	cpuHistory    []float64
+	memHistory    []float64
+	netHistory    []internal.NetworkSpeed
 
-	// UI state
-	currentTheme ThemeMode
-	mutex        sync.RWMutex
+	refreshRate   time.Duration
+	paused        bool
+	clients       map[chan []byte]bool
+	clientsMu     sync.Mutex
+	stopChan      chan struct{}
+	server        *http.Server
+	Port          int
+	OpenBrowserUI bool
 }
 
-// NewApp creates and initializes a new GUI application
+// NewApp creates a new GUI/Web application state
 func NewApp() *AppState {
-	fyneApp := app.NewWithID("sysmon")
-	mainWindow := fyneApp.NewWindow()
-	mainWindow.Resize(fyne.NewSize(1200, 700))
-
-	state := &AppState{
-		fyneApp:     fyneApp,
-		mainWindow:  mainWindow,
-		refreshRate: 3 * time.Second,
-		paused:      false,
-		stopChan:    make(chan bool),
-		currentTheme: ThemeLight,
-
-		cpuHistory:       make([]*HistoryPoint, 0, 60),
-		memoryHistory:    make([]*HistoryPoint, 0, 60),
-		networkHistory:   make([]*HistoryPoint, 0, 60),
-		networkUpHistory: make([]*HistoryPoint, 0, 60),
+	return &AppState{
+		refreshRate:   1 * time.Second,
+		paused:        false,
+		cpuHistory:    make([]float64, 0, 60),
+		memHistory:    make([]float64, 0, 60),
+		netHistory:    make([]internal.NetworkSpeed, 0, 60),
+		clients:       make(map[chan []byte]bool),
+		stopChan:      make(chan struct{}),
+		Port:          8080,
+		OpenBrowserUI: true,
 	}
-
-	// Apply theme
-	state.applyTheme()
-
-	// Create UI
-	state.createUI()
-
-	// Start data collection loop
-	go state.dataCollectionLoop()
-
-	// Handle window close
-	mainWindow.SetOnClosed(func() {
-		state.stopChan <- true
-	})
-
-	return state
 }
 
-// createUI builds the main UI layout
-func (s *AppState) createUI() {
-	// Create tabs
-	s.tabs = container.NewAppTabs()
-	s.tabs.OnChanged = func(tab *container.TabItem) {
-		s.updateDisplay()
+// Run starts the background monitor, HTTP server, and opens the user's browser
+func (app *AppState) Run() {
+	// Start collector
+	go app.startCollector()
+
+	// Setup HTTP handler
+	handler := app.setupRoutes()
+
+	// Find available port
+	listener, port, err := findAvailablePort(app.Port)
+	if err != nil {
+		log.Fatalf("Failed to bind port: %v", err)
+	}
+	app.Port = port
+	app.server = &http.Server{Handler: handler}
+
+	url := fmt.Sprintf("http://localhost:%d", app.Port)
+
+	fmt.Println("\n========================================================")
+	fmt.Printf(" 🖥️  SysMon Web GUI running at: %s\n", url)
+	fmt.Println("    Press Ctrl+C to stop the monitor")
+	fmt.Println("========================================================\n")
+
+	// Open browser
+	if app.OpenBrowserUI {
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			openBrowser(url)
+		}()
 	}
 
-	// Create tab items
-	s.tabs.Append(container.NewTabItem("Overview", s.newOverviewTab()))
-	s.tabs.Append(container.NewTabItem("Processes", s.newProcessesTab()))
-	s.tabs.Append(container.NewTabItem("Network", s.newNetworkTab()))
-	s.tabs.Append(container.NewTabItem("Disks", s.newDisksTab()))
-	s.tabs.Append(container.NewTabItem("System", s.newSystemTab()))
+	// Graceful shutdown handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// Create status bar with controls
-	s.statusLabel = widget.NewLabel("Ready")
-	s.pauseButton = widget.NewButton("Pause", s.togglePause)
-	s.themeToggle = widget.NewButton("🌙 Dark", s.toggleTheme)
+	go func() {
+		<-sigChan
+		fmt.Println("\nShutting down SysMon GUI...")
+		close(app.stopChan)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		app.server.Shutdown(ctx)
+	}()
 
-	s.refreshSlider = widget.NewSlider(1, 10)
-	s.refreshSlider.Value = 3
-	s.refreshSlider.OnChanged = s.changeRefreshRate
-	s.refreshSlider.Step = 1
-
-	refreshLabel := widget.NewLabel("Refresh Rate:")
-	refreshContainer := container.NewBorder(refreshLabel, nil, nil, nil, s.refreshSlider)
-
-	// Control bar
-	controlBar := container.NewBorder(nil, nil, s.pauseButton, s.themeToggle, container.NewVBox(
-		s.statusLabel,
-		refreshContainer,
-	))
-
-	// Main layout
-	mainContent := container.NewBorder(nil, controlBar, nil, nil, s.tabs)
-	s.mainWindow.SetContent(mainContent)
+	if err := app.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("HTTP server error: %v", err)
+	}
 }
 
+// startCollector periodically fetches metrics and pushes to SSE clients
+func (app *AppState) startCollector() {
+	// First immediate collection
+	app.collectMetrics()
 
-// dataCollectionLoop runs the main data collection and refresh loop
-func (s *AppState) dataCollectionLoop() {
-	s.ticker = time.NewTicker(s.refreshRate)
-	defer s.ticker.Stop()
+	app.mu.RLock()
+	currentRate := app.refreshRate
+	app.mu.RUnlock()
 
-	// Initial data fetch
-	s.fetchData()
+	ticker := time.NewTicker(currentRate)
+	defer ticker.Stop()
 
 	for {
 		select {
-		case <-s.ticker.C:
-			if !s.paused {
-				s.fetchData()
-				s.updateDisplay()
+		case <-app.stopChan:
+			return
+		case <-ticker.C:
+			app.mu.RLock()
+			paused := app.paused
+			rate := app.refreshRate
+			app.mu.RUnlock()
+
+			if rate != currentRate {
+				currentRate = rate
+				ticker.Reset(rate)
 			}
-		case <-s.stopChan:
+
+			if !paused {
+				app.collectMetrics()
+			}
+		}
+	}
+}
+
+func (app *AppState) collectMetrics() {
+	sysStats, _ := internal.GetSystemStats()
+	procStats, _ := internal.GetProcessStats()
+	netStats, _ := internal.GetNetworkStats()
+	netSpeeds, _ := internal.GetNetworkSpeeds()
+
+	app.mu.Lock()
+	if sysStats != nil {
+		app.systemStats = sysStats
+		app.cpuHistory = append(app.cpuHistory, sysStats.CPU.Usage)
+		if len(app.cpuHistory) > 60 {
+			app.cpuHistory = app.cpuHistory[len(app.cpuHistory)-60:]
+		}
+		app.memHistory = append(app.memHistory, sysStats.Memory.UsedPercent)
+		if len(app.memHistory) > 60 {
+			app.memHistory = app.memHistory[len(app.memHistory)-60:]
+		}
+	}
+	if procStats != nil {
+		app.processStats = procStats
+	}
+	if netStats != nil {
+		app.networkStats = netStats
+	}
+	if netSpeeds != nil {
+		app.networkSpeeds = netSpeeds
+		var aggregateSpeed internal.NetworkSpeed
+		for _, s := range netSpeeds {
+			aggregateSpeed.DownloadKBps += s.DownloadKBps
+			aggregateSpeed.UploadKBps += s.UploadKBps
+		}
+		app.netHistory = append(app.netHistory, aggregateSpeed)
+		if len(app.netHistory) > 60 {
+			app.netHistory = app.netHistory[len(app.netHistory)-60:]
+		}
+	}
+	payload := app.buildPayloadLocked()
+	app.mu.Unlock()
+
+	// Broadcast to SSE clients
+	data, err := json.Marshal(payload)
+	if err == nil {
+		app.broadcast(data)
+	}
+}
+
+func (app *AppState) buildPayloadLocked() map[string]interface{} {
+	return map[string]interface{}{
+		"system":          app.systemStats,
+		"processes":       app.processStats,
+		"network":         app.networkStats,
+		"speeds":          app.networkSpeeds,
+		"paused":          app.paused,
+		"refresh_rate_ms": app.refreshRate.Milliseconds(),
+		"history": map[string]interface{}{
+			"cpu":     app.cpuHistory,
+			"memory":  app.memHistory,
+			"network": app.netHistory,
+		},
+	}
+}
+
+func (app *AppState) broadcast(data []byte) {
+	app.clientsMu.Lock()
+	defer app.clientsMu.Unlock()
+
+	msg := append([]byte("data: "), data...)
+	msg = append(msg, []byte("\n\n")...)
+
+	for ch := range app.clients {
+		select {
+		case ch <- msg:
+		default:
+			// Client blocked or slow, skip
+		}
+	}
+}
+
+func (app *AppState) setupRoutes() http.Handler {
+	mux := http.NewServeMux()
+
+	// Static web files from embed.FS
+	staticContent, err := fs.Sub(webFS, "web")
+	if err != nil {
+		log.Fatalf("Failed to initialize web filesystem: %v", err)
+	}
+	fileServer := http.FileServer(http.FS(staticContent))
+
+	mux.Handle("/", fileServer)
+
+	// API Stats
+	mux.HandleFunc("/api/stats", func(w http.ResponseWriter, r *http.Request) {
+		app.mu.RLock()
+		payload := app.buildPayloadLocked()
+		app.mu.RUnlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(payload)
+	})
+
+	// Server-Sent Events (SSE)
+	mux.HandleFunc("/api/events", func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 			return
 		}
-	}
-}
 
-// fetchData collects current system statistics
-func (s *AppState) fetchData() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	// Get system stats
-	if stats, err := internal.GetSystemStats(); err == nil {
-		s.systemStats = stats
+		msgChan := make(chan []byte, 10)
 
-		// Add to history (keep last 60 points)
-		s.cpuHistory = append(s.cpuHistory, &HistoryPoint{
-			Timestamp: time.Now(),
-			Value:     stats.CPU.Usage,
-		})
-		if len(s.cpuHistory) > 60 {
-			s.cpuHistory = s.cpuHistory[1:]
+		app.clientsMu.Lock()
+		app.clients[msgChan] = true
+		app.clientsMu.Unlock()
+
+		defer func() {
+			app.clientsMu.Lock()
+			delete(app.clients, msgChan)
+			app.clientsMu.Unlock()
+		}()
+
+		// Send initial snapshot immediately
+		app.mu.RLock()
+		initialPayload := app.buildPayloadLocked()
+		app.mu.RUnlock()
+
+		if initialData, err := json.Marshal(initialPayload); err == nil {
+			fmt.Fprintf(w, "data: %s\n\n", initialData)
+			flusher.Flush()
 		}
 
-		s.memoryHistory = append(s.memoryHistory, &HistoryPoint{
-			Timestamp: time.Now(),
-			Value:     stats.Memory.UsedPercent,
-		})
-		if len(s.memoryHistory) > 60 {
-			s.memoryHistory = s.memoryHistory[1:]
+		ctx := r.Context()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-msgChan:
+				w.Write(msg)
+				flusher.Flush()
+			}
 		}
-	}
+	})
 
-	// Get process stats
-	if pstats, err := internal.GetProcessStats(); err == nil {
-		s.processStats = pstats
-	}
-
-	// Get network stats
-	if nstats, err := internal.GetNetworkStats(); err == nil {
-		s.networkStats = nstats
-	}
-
-	// Get network speeds
-	if speeds, err := internal.GetNetworkSpeeds(); err == nil && len(speeds) > 0 {
-		totalDown := 0.0
-		for _, speed := range speeds {
-			totalDown += speed.DownloadKBps
+	// Settings update
+	mux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
-		s.networkHistory = append(s.networkHistory, &HistoryPoint{
-			Timestamp: time.Now(),
-			Value:     totalDown,
-		})
-		if len(s.networkHistory) > 60 {
-			s.networkHistory = s.networkHistory[1:]
+
+		var req struct {
+			Paused        *bool `json:"paused"`
+			RefreshRateMs *int  `json:"refresh_rate_ms"`
 		}
-	}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		app.mu.Lock()
+		if req.Paused != nil {
+			app.paused = *req.Paused
+		}
+		if req.RefreshRateMs != nil && *req.RefreshRateMs >= 250 {
+			app.refreshRate = time.Duration(*req.RefreshRateMs) * time.Millisecond
+		}
+		payload := app.buildPayloadLocked()
+		app.mu.Unlock()
+
+		// Broadcast state update
+		if data, err := json.Marshal(payload); err == nil {
+			app.broadcast(data)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	})
+
+	// Process Kill
+	mux.HandleFunc("/api/process/kill", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req struct {
+			PID int `json:"pid"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		proc, err := os.FindProcess(req.PID)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+
+		if err := proc.Kill(); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	})
+
+	// Export stats
+	mux.HandleFunc("/api/export", func(w http.ResponseWriter, r *http.Request) {
+		app.mu.RLock()
+		payload := app.buildPayloadLocked()
+		app.mu.RUnlock()
+
+		filename := fmt.Sprintf("sysmon_export_%s.json", time.Now().Format("20060102_150405"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+		encoder := json.NewEncoder(w)
+		encoder.SetIndent("", "  ")
+		encoder.Encode(payload)
+	})
+
+	return mux
 }
 
-// updateDisplay refreshes the UI with current data
-func (s *AppState) updateDisplay() {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	// Update status label
-	if s.systemStats != nil {
-		status := fmt.Sprintf("CPU: %.1f%% | Memory: %.1f%% | %s",
-			s.systemStats.CPU.Usage,
-			s.systemStats.Memory.UsedPercent,
-			time.Now().Format("15:04:05"))
-		s.statusLabel.SetText(status)
-	}
-
-	// Note: Detailed tab updates will be implemented in separate tab files
-}
-
-// togglePause pauses/resumes data collection
-func (s *AppState) togglePause() {
-	s.paused = !s.paused
-	if s.paused {
-		s.pauseButton.SetText("Resume")
-	} else {
-		s.pauseButton.SetText("Pause")
-	}
-}
-
-// toggleTheme switches between light and dark theme
-func (s *AppState) toggleTheme() {
-	s.mutex.Lock()
-	if s.currentTheme == ThemeLight {
-		s.currentTheme = ThemeDark
-	} else {
-		s.currentTheme = ThemeLight
-	}
-	s.mutex.Unlock()
-
-	s.applyTheme()
-}
-
-// applyTheme applies the current theme to the app
-func (s *AppState) applyTheme() {
-	// For now, Fyne uses the system theme. Additional customization can be added here.
-	if s.currentTheme == ThemeDark {
-		if s.themeToggle != nil {
-			s.themeToggle.SetText("☀️ Light")
-		}
-	} else {
-		if s.themeToggle != nil {
-			s.themeToggle.SetText("🌙 Dark")
+// findAvailablePort finds an open port starting from startPort
+func findAvailablePort(startPort int) (net.Listener, int, error) {
+	for port := startPort; port < startPort+100; port++ {
+		listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+		if err == nil {
+			return listener, port, nil
 		}
 	}
+	return nil, 0, fmt.Errorf("no available port found starting from %d", startPort)
 }
 
-// changeRefreshRate updates the refresh rate based on slider
-func (s *AppState) changeRefreshRate(value float64) {
-	newRate := time.Duration(value) * time.Second
-	if newRate != s.refreshRate {
-		s.refreshRate = newRate
-		// Stop and restart ticker with new rate
-		if s.ticker != nil {
-			s.ticker.Stop()
-		}
-		s.ticker = time.NewTicker(s.refreshRate)
+// openBrowser launches the URL in the default web browser
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default: // "linux", "freebsd", "openbsd", "netbsd"
+		cmd = exec.Command("xdg-open", url)
 	}
-}
 
-// Run starts the GUI application
-func (s *AppState) Run() {
-	s.mainWindow.ShowAndRun()
+	if err := cmd.Start(); err != nil {
+		log.Printf("Failed to open browser: %v. Please open %s manually.", err, url)
+	}
 }

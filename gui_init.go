@@ -7,7 +7,11 @@ import (
 	"sysmon/gui"
 )
 
-func initGUI() {
+func initGUI(port int, openBrowser bool) {
 	guiApp := gui.NewApp()
+	if port > 0 {
+		guiApp.Port = port
+	}
+	guiApp.OpenBrowserUI = openBrowser
 	guiApp.Run()
 }
